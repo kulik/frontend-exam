@@ -32,26 +32,40 @@ export const Chat = () => {
         if (!lastEntry || lastEntry.isUser) return;
         lastEntry.message = getBotReply();
         lastEntry.isLoading = false;
+        //intercept last bot message, to build suggestions list
         setLastBotReply(lastEntry.message);
+        setLastUnsubmittedInput('');
     }, [content, isBotDoneTyping]);
 
+    //hack which uggly and based on internal ChatWindow internal implementation,  needed to prevent owerriding user message
+    // by bot message when sent using  setLastInputValue(text); in other case bot owerride this message
+    const makeMessage = (isUser: boolean, text: string, id: number) => ({
+        isUser,
+        message: text,
+        avatar: avatars.user,
+        id: `message_${id}`,
+        isLoading: false
+    });
+
     function getFooter() {
-        if (content.length > 1 && !content[1].isLoading) {
+        if (content.length > 0 && !content[0].isLoading) {
             return <AnswerProvider message={lastBotReply}
-                                   onAnswerPicked={(text: string) => setLastInputValue(text)}
+                                   onAnswerPicked={(text: string) => {
+                                       // manual insert data to content - hack better to investigate public API of Chat Window
+                                       content.push(makeMessage(true, text, content.length))
+                                       setLastInputValue(text);
+                                   }
+                                   }
             />
         } else {
             return undefined;
         }
     }
 
-    // const lastBotMessage = content.reverse().find(value => !value.isUser)?.message;
     return (<ChatWindow
             headerAdditionalContent={<div style={{flex: 1, display: "flex", justifyContent: "center"}}>HEADER</div>}
             content={content}
             onChange={(text: string) => setLastUnsubmittedInput(text)}
-    //FIX We have something here which is not create new element for bot message i see some side effect under
-            // useUserTyping and useBotTyping  and probably before callback method of onSubmit
             onSubmit={(text: string) => setLastInputValue(text)}
             footer={getFooter()}
         />
